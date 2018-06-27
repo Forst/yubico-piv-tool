@@ -816,6 +816,8 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   EVP_PKEY *public_key = NULL;
   X509 *x509 = NULL;
   X509_NAME *name = NULL;
+  X509_EXTENSION *ex = NULL;
+  X509V3_CTX v3ctx;
   const EVP_MD *md;
   unsigned char algorithm;
   int key = 0;
@@ -927,6 +929,39 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     fprintf(stderr, "Failed setting certificate issuer.\n");
     goto selfsign_out;
   }
+
+  X509V3_set_ctx(&v3ctx, x509, x509, 0, 0, 0);
+
+  ex = X509V3_EXT_conf_nid(0, &v3ctx, NID_basic_constraints, "critical,CA:TRUE");
+  if(!ex) {
+    fprintf(stderr, "Failed creating basic constraints extension.\n");
+    goto selfsign_out;
+  }
+  if(!X509_add_ext(x509, ex, -1)) {
+    fprintf(stderr, "Failed adding basic constraints extension.\n");
+    goto selfsign_out;
+  }
+
+  ex = X509V3_EXT_conf_nid(0, &v3ctx, NID_key_usage, "keyCertSign, cRLSign");
+  if(!ex) {
+    fprintf(stderr, "Failed creating key usage extension.\n");
+    goto selfsign_out;
+  }
+  if(!X509_add_ext(x509, ex, -1)) {
+    fprintf(stderr, "Failed adding key usage extension.\n");
+    goto selfsign_out;
+  }
+
+  ex = X509V3_EXT_conf_nid(0, &v3ctx, NID_subject_key_identifier, "hash");
+  if(!ex) {
+    fprintf(stderr, "Failed creating subject key identifier extension..\n");
+    goto selfsign_out;
+  }
+  if(!X509_add_ext(x509, ex, -1)) {
+    fprintf(stderr, "Failed adding subject key identifier extension.\n");
+    goto selfsign_out;
+  }
+
   nid = get_hashnid(hash, algorithm);
   if(nid == 0) {
     goto selfsign_out;
@@ -1046,6 +1081,9 @@ selfsign_out:
     }
 #endif
     X509_free(x509);
+  }
+  if (ex) {
+    X509_EXTENSION_free(ex);
   }
   if(public_key) {
     EVP_PKEY_free(public_key);
