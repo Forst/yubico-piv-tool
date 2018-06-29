@@ -915,7 +915,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     goto selfsign_out;
   }
 
-  ex = X509V3_EXT_conf_nid(0, &v3ctx, NID_key_usage, "keyCertSign, cRLSign");
+  ex = X509V3_EXT_conf_nid(0, &v3ctx, NID_key_usage, "critical, keyCertSign, cRLSign");
   if(!ex) {
     fprintf(stderr, "Failed creating key usage extension.\n");
     goto selfsign_out;
